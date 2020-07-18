@@ -20,7 +20,7 @@ public class DownloadFile {
 	private static String passfrom = "datawarehouse2020";
 //	private static String content = ";
 	static String mess;
-	private static String subject = "Update log successfull: DATA WAREHOUSE SERVER  ";
+	private static String subject = "Update log successfull: DATA WAREHOUSE SERVER";
 
 	static {
 		try {
@@ -52,14 +52,10 @@ public class DownloadFile {
 		DownloadFile d = new DownloadFile();
 		d.getTrial();
 		CkSsh ssh = new CkSsh();
-		// Hostname may be an IP address or hostname:
-//		String hostname = "www.some-ssh-server.com";
-//		String hostname = "http://drive.ecepvn.org:5000/index.cgi?launchApp=SYNO.SDS.App.FileStation3.Instance&launchParam=openfile%3D%252FECEP%252Fsong.nguyen%252FDW_2020%252F&fbclid=IwAR1GjbMt_ZWTairglWCjOQQH6Q0NbyXgl0qP7LTBahWmR4HcJXNVoh5o5fw";
-//		String hostname = "drive.ecepvn.org";
-//		System.out.println(c.getHost());
+
 		String hostname = host;
 
-//		int port = 2227;
+
 		int port = ports;
 
 		// Connect to an SSH server:
@@ -91,20 +87,12 @@ public class DownloadFile {
 			return false;
 		}
 
-//		scp.put_SyncMustMatch(c.getTableName());// down tat ca cac file bat dau bang sinhvien
 
 		scp.put_SyncMustMatch(file_name + "*.*" + file_type);
 		String remotePath = path;
 		String localPath = local; // thu muc muon down file ve
 		success = scp.SyncTreeDownload(remotePath, localPath, 2, false);
 
-		/*
-		 * String remotePath =
-		 * "/volume1/ECEP/song.nguyen/DW_2020/data/17130276_Sang_Nhom4.xlsx"; // String
-		 * localPath = "/home/bob/test.txt"; String localPath =
-		 * "E:\\DATA WAREHOUSE\\Error\\17130276_Sang_Nhom4.xlsx"; success =
-		 * scp.DownloadFile(remotePath, localPath);
-		 */
 		if (success != true) {
 			System.out.println(scp.lastErrorText());
 			return false;
@@ -120,20 +108,19 @@ public class DownloadFile {
 
 	// ***** DOWNLOAD TAT CA CAC FILE CUA CAC NHOM VE LOCAL ********//
 
-	public static void getLog() throws ClassNotFoundException, SQLException {
+	public static void getLog(int id) throws ClassNotFoundException, SQLException {
 		Connection con;
 		PreparedStatement pre;
 
 		// ket noi toi controldb
 		con = ConnectionDB.getConnection("controldb");
-		String sql = "SELECT * FROM `table_config` WHERE config_id = 1";
+		String sql = "SELECT * FROM `table_config` WHERE config_id = ?";
 		pre = con.prepareStatement(sql);
+		pre.setInt(1, id);
 		System.out.println();
 		ResultSet tmp = pre.executeQuery();
 		// duyet record trong resultset
 		while (tmp.next()) {
-//				String target_table = tmp.getString("target_table");
-			int id = tmp.getInt("config_id");
 			String file_name = tmp.getString("file_name");
 			String file_type = tmp.getString("file_type");
 			String local = tmp.getString("source");
@@ -142,7 +129,6 @@ public class DownloadFile {
 			String path = tmp.getString("remotePath");
 			String host = tmp.getString("host");
 			int ports = tmp.getInt("port");
-			String target_table = tmp.getString("target_table");
 
 			// bat dau load file ve
 			boolean download = new DownloadFile().downloadFile(host, ports, user, pass, path, local, file_name,
@@ -162,9 +148,8 @@ public class DownloadFile {
 							/// bat dau insert vao table_log
 							setupLog(listFile[i].getName(), "ER", numberOfLine, id);
 							// Thong bao thanh cong
-							System.out.println("Insert success full");
+							System.out.println("Insert success full: "+listFile[i]);
 							// gui mail
-
 						}
 						SendMail send = new SendMail(from, to, passfrom,
 								" Update log successfull from " + path + " to " + local + " at "
@@ -190,7 +175,7 @@ public class DownloadFile {
 
 				try {
 					ps = ConnectionDB.getConnection("controldb").prepareStatement(sql1);
-					ps.setString(1, target_table);
+					ps.setString(1, file_name);
 					ps.setInt(2, id);
 					ps.setString(3, "ERROR");
 					ps.setString(4, new Timestamp(System.currentTimeMillis()).toString().substring(0, 19));
@@ -219,8 +204,8 @@ public class DownloadFile {
 
 	}
 
-//	public static void main(String[] args) throws ClassNotFoundException, SQLException {
-//		DownloadFile d = new DownloadFile();
-//		d.getLog();
-//	}
+	public static void main(String[] args) throws ClassNotFoundException, SQLException {
+		DownloadFile d = new DownloadFile();
+		d.getLog(4);
+	}
 }
