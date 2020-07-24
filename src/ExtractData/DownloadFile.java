@@ -1,11 +1,18 @@
 package ExtractData;
 
 import java.io.File;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.util.Iterator;
+
+import org.apache.commons.compress.archivers.dump.InvalidFormatException;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import com.chilkatsoft.CkGlobal;
 import com.chilkatsoft.CkScp;
@@ -55,7 +62,6 @@ public class DownloadFile {
 
 		String hostname = host;
 
-
 		int port = ports;
 
 		// Connect to an SSH server:
@@ -87,7 +93,6 @@ public class DownloadFile {
 			return false;
 		}
 
-
 		scp.put_SyncMustMatch(file_name + "*.*" + file_type);
 		String remotePath = path;
 		String localPath = local; // thu muc muon down file ve
@@ -108,7 +113,7 @@ public class DownloadFile {
 
 	// ***** DOWNLOAD TAT CA CAC FILE CUA CAC NHOM VE LOCAL ********//
 
-	public static void getLog(int id) throws ClassNotFoundException, SQLException {
+	public static void getLog(String id) throws ClassNotFoundException, SQLException {
 		Connection con;
 		PreparedStatement pre;
 
@@ -116,7 +121,7 @@ public class DownloadFile {
 		con = ConnectionDB.getConnection("controldb");
 		String sql = "SELECT * FROM `table_config` WHERE config_id = ?";
 		pre = con.prepareStatement(sql);
-		pre.setInt(1, id);
+		pre.setString(1, id);
 		System.out.println();
 		ResultSet tmp = pre.executeQuery();
 		// duyet record trong resultset
@@ -133,22 +138,22 @@ public class DownloadFile {
 			// bat dau load file ve
 			boolean download = new DownloadFile().downloadFile(host, ports, user, pass, path, local, file_name,
 					file_type);
-			Staging s = new Staging();
-
 			if (download) {
 				File file = new File(local);
 				System.out.println("File");
 				try {
 					// Kiem tra xem file co ton tai trong thu muc hay khong
 					if (file.isDirectory()) {
-
+						//
 						File[] listFile = file.listFiles();
+						// duyet tung file
 						for (int i = 0; i < listFile.length; i++) {
-							int numberOfLine = s.countLines(listFile[i]);
+							// dem so dong du lieu cua tung file
+							int numberOfLine = countLines(listFile[i]);
 							/// bat dau insert vao table_log
 							setupLog(listFile[i].getName(), "ER", numberOfLine, id);
 							// Thong bao thanh cong
-							System.out.println("Insert success full: "+listFile[i]);
+							System.out.println("Insert success full: " + listFile[i]);
 							// gui mail
 						}
 						SendMail send = new SendMail(from, to, passfrom,
@@ -164,6 +169,15 @@ public class DownloadFile {
 //					con.close();
 				} catch (Exception e) {
 					e.printStackTrace();
+				} finally {
+					if (ps != null) {
+						try {
+							ps.close();
+						} catch (SQLException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+					}
 				}
 
 			} else {
@@ -176,12 +190,21 @@ public class DownloadFile {
 				try {
 					ps = ConnectionDB.getConnection("controldb").prepareStatement(sql1);
 					ps.setString(1, file_name);
-					ps.setInt(2, id);
+					ps.setString(2, id);
 					ps.setString(3, "ERROR");
 					ps.setString(4, new Timestamp(System.currentTimeMillis()).toString().substring(0, 19));
 					ps.executeUpdate();
 				} catch (ClassNotFoundException | SQLException e1) {
 					e1.printStackTrace();
+				} finally {
+					if (ps != null) {
+						try {
+							ps.close();
+						} catch (SQLException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+					}
 				}
 				// gửi mail về hệ thống thông báo lỗi
 				SendMail send = new SendMail(from, to, passfrom, "Updated log faild: Error " + mess + ".",
@@ -191,7 +214,7 @@ public class DownloadFile {
 		}
 	}
 
-	private static void setupLog(String name, String status, int numberOfLine, int id)
+	private static void setupLog(String name, String status, int numberOfLine, String id)
 			throws SQLException, ClassNotFoundException {
 		String query = "INSERT INTO table_log (file_Name,file_timestamp, file_status, staging_load_count, data_file_config_id) VALUES (?,?,?,?,?)";
 		PreparedStatement st = ConnectionDB.getConnection("controldb").prepareStatement(query);
@@ -199,13 +222,52 @@ public class DownloadFile {
 		st.setString(2, new Timestamp(System.currentTimeMillis()).toString().substring(0, 19));
 		st.setString(3, status);
 		st.setInt(4, numberOfLine);
-		st.setInt(5, id);
+		st.setString(5, id);
 		st.execute();
 
 	}
 
+	static int countLines(File file)
+			throws InvalidFormatException, org.apache.poi.openxml4j.exceptions.InvalidFormatException {
+		int result = 0;
+		XSSFWorkbook workBooks = null;
+		try {
+			if (!file.exists()) {
+				System.out.println("File không tồn tại");
+			} else {
+				workBooks = new XSSFWorkbook(file);
+				XSSFSheet sheet = workBooks.getSheetAt(0);
+				Iterator<Row> rows = sheet.iterator();
+				rows.next();
+				while (rows.hasNext()) {
+					rows.next();
+					result++;
+				}
+				return result;
+			}
+		} catch (IOException | org.apache.poi.openxml4j.exceptions.InvalidFormatException e) {
+			e.printStackTrace();
+		} finally {
+			if (workBooks != null) {
+				try {
+					workBooks.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		return result;
+	}
+
 	public static void main(String[] args) throws ClassNotFoundException, SQLException {
 		DownloadFile d = new DownloadFile();
-		d.getLog(4);
+		String id = args[0];
+		d.getLog(id);
+		String id1 = args[1];
+		d.getLog(id1);
+		String id2 = args[2];
+		d.getLog(id2);
+		String id3 = args[3];
+		d.getLog(id3);
 	}
 }
