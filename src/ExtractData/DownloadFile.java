@@ -7,6 +7,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.Iterator;
 
 import org.apache.commons.compress.archivers.dump.InvalidFormatException;
@@ -25,7 +26,6 @@ public class DownloadFile {
 //	private static String to = "huyvo2581999@gmail.com";
 	private static String to = "tranghoang13199@gmail.com";
 	private static String passfrom = "datawarehouse2020";
-//	private static String content = ";
 	static String mess;
 	private static String subject = "Update log successfull: DATA WAREHOUSE SERVER";
 
@@ -38,7 +38,7 @@ public class DownloadFile {
 		}
 	}
 
-	public static void getTrial() {
+	public void getTrial() {
 		CkGlobal glob = new CkGlobal();
 		boolean success = glob.UnlockBundle("Anything for 30-day trial");
 		if (success != true) {
@@ -54,14 +54,14 @@ public class DownloadFile {
 		System.out.println(glob.lastErrorText());
 	}
 
-	public static boolean downloadFile(String host, int ports, String user, String pass, String path, String local,
+	public boolean downloadFile(String host, int ports, String user, String pass, String path, String local,
 			String file_name, String file_type) throws ClassNotFoundException, SQLException {
 		DownloadFile d = new DownloadFile();
 		d.getTrial();
 		CkSsh ssh = new CkSsh();
-
+		// dia chi tren drive: drive.ecepvn.org
 		String hostname = host;
-
+//
 		int port = ports;
 
 		// Connect to an SSH server:
@@ -76,6 +76,7 @@ public class DownloadFile {
 		ssh.put_IdleTimeoutMs(5000);
 
 		// Authenticate using login/password:
+		// xac thuc dang nhap voi user: guest_access voi pass: 123456
 		success = ssh.AuthenticatePw(user, pass);
 		if (success != true) {
 			System.out.println(ssh.lastErrorText());
@@ -92,9 +93,9 @@ public class DownloadFile {
 			System.out.println(scp.lastErrorText());
 			return false;
 		}
-
+		// lay cac file có ten bat dau bang sinh vien, mon hoc.... với duoi la .xlsx
 		scp.put_SyncMustMatch(file_name + "*.*" + file_type);
-		String remotePath = path;
+		String remotePath = path;// dia chi de lay file download ve /volume1/ECEP/song.nguyen/DW_2020/data
 		String localPath = local; // thu muc muon down file ve
 		success = scp.SyncTreeDownload(remotePath, localPath, 2, false);
 
@@ -113,7 +114,7 @@ public class DownloadFile {
 
 	// ***** DOWNLOAD TAT CA CAC FILE CUA CAC NHOM VE LOCAL ********//
 
-	public static void getLog(String id) throws ClassNotFoundException, SQLException {
+	public void getLog(String id) throws ClassNotFoundException, SQLException {
 		Connection con;
 		PreparedStatement pre;
 
@@ -126,7 +127,7 @@ public class DownloadFile {
 		ResultSet tmp = pre.executeQuery();
 		// duyet record trong resultset
 		while (tmp.next()) {
-			String file_name = tmp.getString("file_name");
+			String target_table = tmp.getString("target_table");
 			String file_type = tmp.getString("file_type");
 			String local = tmp.getString("source");
 			String user = tmp.getString("userRemote");
@@ -135,27 +136,50 @@ public class DownloadFile {
 			String host = tmp.getString("host");
 			int ports = tmp.getInt("port");
 
-			// bat dau load file ve
-			boolean download = new DownloadFile().downloadFile(host, ports, user, pass, path, local, file_name,
+//			// bat dau load file ve location
+			boolean download = new DownloadFile().downloadFile(host, ports, user, pass, path, local, target_table,
 					file_type);
+			// kiem tra xem download co thanh cong hay khong
+			// neu thanh cong thi
 			if (download) {
+				// lay file trong thu muc
 				File file = new File(local);
-				System.out.println("File");
 				try {
 					// Kiem tra xem file co ton tai trong thu muc hay khong
 					if (file.isDirectory()) {
-						//
+						// lay ra danh sach cac file co trong thu muc
 						File[] listFile = file.listFiles();
-						// duyet tung file
-						for (int i = 0; i < listFile.length; i++) {
-							// dem so dong du lieu cua tung file
-							int numberOfLine = countLines(listFile[i]);
-							/// bat dau insert vao table_log
-							setupLog(listFile[i].getName(), "ER", numberOfLine, id);
-							// Thong bao thanh cong
-							System.out.println("Insert success full: " + listFile[i]);
-							// gui mail
+						// duyet trong log xem file da duoc ghi log chua
+						String sqllog = "SELECT file_name FROM table_log";
+						PreparedStatement pslog = ConnectionDB.getConnection("controldb").prepareStatement(sqllog);
+						ResultSet rslog = pslog.executeQuery();
+						// 1 ds các file co trong log
+						ArrayList<String> listFileLog = new ArrayList<>();
+						while (rslog.next()) {
+							listFileLog.add(rslog.getString("file_name"));
 						}
+						for (File f : listFile) {
+							// neu trong log chua ton tai file thì bat dau insert vao
+							if (!listFileLog.contains(f.getName())) {
+								// dem so dong co trong file
+								int numberOfLine = countLines(f);
+								// bat dau ghi log
+//							setupLog(f.getName(), "ER", numberOfLine, id);
+								String query = "INSERT INTO table_log (file_Name,file_timestamp, file_status, staging_load_count, data_file_config_id) VALUES (?,?,?,?,?)";
+								PreparedStatement st = ConnectionDB.getConnection("controldb").prepareStatement(query);
+								st.setString(1, f.getName());
+								st.setString(2, new Timestamp(System.currentTimeMillis()).toString().substring(0, 19));
+								st.setString(3, "ER");
+								st.setInt(4, numberOfLine);
+								st.setString(5, id);
+								st.execute();
+
+								// Thong bao thanh cong
+								System.out.println("Insert success full: " + f);
+							} else
+								System.out.println(f + ": Đã được insert vào log ");
+						}
+						// gui mail
 						SendMail send = new SendMail(from, to, passfrom,
 								" Update log successfull from " + path + " to " + local + " at "
 										+ new Timestamp(System.currentTimeMillis()).toString().substring(0, 19),
@@ -164,9 +188,6 @@ public class DownloadFile {
 
 					} else
 						System.out.println("No fine path");
-
-//					br.close();
-//					con.close();
 				} catch (Exception e) {
 					e.printStackTrace();
 				} finally {
@@ -174,7 +195,6 @@ public class DownloadFile {
 						try {
 							ps.close();
 						} catch (SQLException e) {
-							// TODO Auto-generated catch block
 							e.printStackTrace();
 						}
 					}
@@ -189,7 +209,7 @@ public class DownloadFile {
 
 				try {
 					ps = ConnectionDB.getConnection("controldb").prepareStatement(sql1);
-					ps.setString(1, file_name);
+					ps.setString(1, target_table);
 					ps.setString(2, id);
 					ps.setString(3, "ERROR");
 					ps.setString(4, new Timestamp(System.currentTimeMillis()).toString().substring(0, 19));
@@ -214,21 +234,10 @@ public class DownloadFile {
 		}
 	}
 
-	private static void setupLog(String name, String status, int numberOfLine, String id)
-			throws SQLException, ClassNotFoundException {
-		String query = "INSERT INTO table_log (file_Name,file_timestamp, file_status, staging_load_count, data_file_config_id) VALUES (?,?,?,?,?)";
-		PreparedStatement st = ConnectionDB.getConnection("controldb").prepareStatement(query);
-		st.setString(1, name);
-		st.setString(2, new Timestamp(System.currentTimeMillis()).toString().substring(0, 19));
-		st.setString(3, status);
-		st.setInt(4, numberOfLine);
-		st.setString(5, id);
-		st.execute();
-
-	}
-
+//dem so dong co trong file
 	static int countLines(File file)
 			throws InvalidFormatException, org.apache.poi.openxml4j.exceptions.InvalidFormatException {
+		// bien dung de dem
 		int result = 0;
 		XSSFWorkbook workBooks = null;
 		try {
@@ -260,14 +269,10 @@ public class DownloadFile {
 	}
 
 	public static void main(String[] args) throws ClassNotFoundException, SQLException {
-		DownloadFile d = new DownloadFile();
-		String id = args[0];
-		d.getLog(id);
-		String id1 = args[1];
-		d.getLog(id1);
-		String id2 = args[2];
-		d.getLog(id2);
-		String id3 = args[3];
-		d.getLog(id3);
+		Download d = new Download();
+		for (int i = 0; i < args.length; i++) {
+			String id = args[i];
+			d.getLog(id);
+		}
 	}
 }
