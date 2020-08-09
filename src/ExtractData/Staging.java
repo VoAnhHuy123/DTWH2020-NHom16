@@ -36,6 +36,7 @@ public class Staging {
 	static String source_file;
 	static String local;
 	static int countofline;
+	static String fileType;
 	private static String from = "datawarehouse0126@gmail.com";
 //	private static String to = "huyvo2581999@gmail.com";
 	private static String to = "huyvo2581999@gmail.com";
@@ -49,120 +50,123 @@ public class Staging {
 		PreparedStatement pre;
 		// Kiem tra ket noi
 		try {
+			String succeed = "";
+			String fail = "";
+			String error = "";
 			con = ConnectionDB.getConnection("controldb");
 			String sql = "SELECT * FROM `table_config` JOIN table_log ON table_config.config_id = table_log.data_file_config_id WHERE table_log.file_status = 'ER'";
 			pre = con.prepareStatement(sql);
 			ResultSet rs = pre.executeQuery();
-			rs.next();
-			String succeed ="";
-			String fail="";
-			int id = rs.getInt("id");
-			target_table = rs.getString("target_table");
-			source = rs.getString("source");
-			column_list = rs.getString("column_list");
+			while (rs.next()) {
+//			rs.next();
+
+				int id = rs.getInt("id");
+				target_table = rs.getString("target_table");
+				source = rs.getString("source");
+				column_list = rs.getString("column_list");
 //			System.out.println(column_list);
-			numOfcol = rs.getInt("numofcol"); 
-			dilimeter = rs.getString("delimeter");
-			source_file = null;
-			local = rs.getString("source");
-			String variables = rs.getString("variables");
-			StringTokenizer tokens = new StringTokenizer(column_list, dilimeter);
-			createTable(target_table, variables, column_list);
-			while (tokens.hasMoreTokens()) {
-				columnslist.add(tokens.nextToken());
-			}
+				numOfcol = rs.getInt("numofcol");
+				dilimeter = rs.getString("delimeter");
+//				source_file = null;
+				fileType= rs.getString("file_type");
+				local = rs.getString("source");
 
-			String selectAll = "select * from table_log";
-			System.out.println("ok");
-			PreparedStatement getAll = ConnectionDB.getConnection("controldb").prepareStatement(selectAll);
-			ResultSet result = getAll.executeQuery();
-			while (result.next()) {
-				String status = result.getString("file_status");
-				if (status.equals("ER")) {
-					System.out.println("++++++++++++++++");
-					System.out.println(result.getString("file_name"));
-					System.out.println("++++++++++++++++");
-					String fileName = result.getString("file_name");
-					File file = new File(local + "\\" + fileName);
-					if (!file.exists()) {
-						System.out.println("File không tồn tại");
-					} else {
-						/// doc file
-						String readFile = Staging.readValuesXLSX(file);
-						System.out.println("Doc file thanh cong");
-						String values = "";
-						System.out.println("========");
+				//
+				String fileName = rs.getString("file_name");
+				System.out.println(fileName);
+				System.out.println(local);
 
-						// PreparedStatement newTable =
-						// ConnectionDB.getConnection("staging").prepareStatement(sql);
-						
-						if (readFile != null) {
-							System.out.println("Chuan bi insert du lieu");
-							// connect to stagin
+				//
+//			String variables = rs.getString("variables");
+				StringTokenizer tokens = new StringTokenizer(column_list, dilimeter);
+//			createTable(target_table, variables, column_list);
+				while (tokens.hasMoreTokens()) {
+					columnslist.add(tokens.nextToken());
+				}
 
-							// end
-							if (Staging.writeDataToBD(target_table, column_list, readFile)) {
-								countofline = Staging.countLines(file);
-								if (countofline > 0) {
-									/// Kiem tra so dong duoc load vao staging
-									String sqlupdate = "UPDATE table_log SET file_status = ?,staging_load_count =?, file_timestamp =? WHERE id = ?";
+//			String selectAll = "select * from table_log";
+//			System.out.println("ok");
+//			PreparedStatement getAll = ConnectionDB.getConnection("controldb").prepareStatement(selectAll);
+//			ResultSet result = getAll.executeQuery();
+//			while (result.next()) {
+//				String status = result.getString("file_status");
+//				if (status.equals("ER")) {
+//					String fileName = result.getString("file_name");
+				File file = new File(local + "\\" + fileName +"."+ fileType);
+				if (!file.exists()) {
+					error += local + "\\" + fileName + fileType + "\n";
+					System.out.println("File không tồn tại");
+				} else {
+					/// doc file
+					String readFile = Staging.readValuesXLSX(file);
+					System.out.println("Doc file thanh cong");
+					String values = "";
+					System.out.println("========");
+					String sqlupdate = "UPDATE table_log SET file_status = ?,staging_load_count =?, file_timestamp =? WHERE id = ?";
+					if (readFile != null) {
+						System.out.println("Chuan bi insert du lieu");
+//							if (Staging.writeDataToBD(target_table, column_list, readFile)) {
+//						countofline = Staging.countLines(file);
 
-									try {
-										pre = ConnectionDB.getConnection("controldb").prepareStatement(sqlupdate);
-										pre.setString(1, "TR");
-										pre.setInt(2, countofline);
-										pre.setString(3,
-												new Timestamp(System.currentTimeMillis()).toString().substring(0, 19));
-										pre.setInt(4, result.getInt("id"));
-										pre.execute();
-										succeed+=fileName+" ";
-										System.out.println("Update success.......");
-									} catch (ClassNotFoundException e) {
-										// TODO Auto-generated catch block
-										e.printStackTrace();
-									} catch (SQLException e) {
-										// TODO Auto-generated catch block
-										e.printStackTrace();
-									}
-								}
-							}else {
-								String sqlupdate = "UPDATE table_log SET file_status = ?,staging_load_count =?, file_timestamp =? WHERE id = ?";
+//						if (countofline > 0) {
+							/// Kiem tra so dong duoc load vao staging
+							insertValues(target_table, column_list, readFile);
 
-								try {
-									pre = ConnectionDB.getConnection("controldb").prepareStatement(sqlupdate);
-									pre.setString(1, "Fail");
-									pre.setInt(2, countofline);
-									pre.setString(3,
-											new Timestamp(System.currentTimeMillis()).toString().substring(0, 19));
-									pre.setInt(4, result.getInt("id"));
-									pre.execute();
-									fail +=fileName+" ";
-									System.out.println("Update success.......");
-								} catch (ClassNotFoundException e) {
-									// TODO Auto-generated catch block
-									e.printStackTrace();
-								} catch (SQLException e) {
-									// TODO Auto-generated catch block
-									e.printStackTrace();
-								}
-								
-								//send mail
-								
+							try {
+								pre = ConnectionDB.getConnection("controldb").prepareStatement(sqlupdate);
+								pre.setString(1, "TR");
+								pre.setInt(2, countofline);
+								pre.setString(3, new Timestamp(System.currentTimeMillis()).toString().substring(0, 19));
+								pre.setInt(4, id);
+								pre.execute();
+								succeed += fileName +"."+fileType+ " ";
+								System.out.println("Update success.......");
+							} catch (ClassNotFoundException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							} catch (SQLException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
 							}
+//								}
+						} else {
+//								String sqlupdate = "UPDATE table_log SET file_status = ?,staging_load_count =?, file_timestamp =? WHERE id = ?";
+
+							try {
+								pre = ConnectionDB.getConnection("controldb").prepareStatement(sqlupdate);
+								pre.setString(1, "Fail");
+								pre.setInt(2, countofline);
+								pre.setString(3, new Timestamp(System.currentTimeMillis()).toString().substring(0, 19));
+								pre.setInt(4, id);
+								pre.execute();
+								fail += fileName + " ";
+								System.out.println("Update success.......");
+							} catch (ClassNotFoundException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							} catch (SQLException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+
+							// send mail
+
 						}
+					}
 //					}
 //				} else {
 //					createTable(target_table, variables, column_list);
 //					System.out.println("tao bang moi");
-					}
-				}
+//				}
+//				}
+//			}
+
 			}
 			SendMail send = new SendMail(from, to, passfrom,
-					"Extract to staging: Succeed: " + succeed + " \n" + "Fail:" + fail + "\n"
-							+ new Timestamp(System.currentTimeMillis()).toString().substring(0, 19),
+					"Extract to staging: Succeed: " + succeed + " \n" + "Fail:" + fail + "\n" + "File not found:"
+							+ error + "\n" + new Timestamp(System.currentTimeMillis()).toString().substring(0, 19),
 					subject);
 			send.sendMail();
-			
 		} catch (ClassNotFoundException | SQLException e) {
 			System.out.println("khong co trang thai san sang");
 		}
@@ -253,7 +257,7 @@ public class Staging {
 			XSSFSheet sheet = workBooks.getSheetAt(0);
 			Iterator<Row> rows = sheet.iterator();
 			rows.next();
-			int countRow=0;
+			int countRow = 0;
 			while (rows.hasNext()) {
 				Row row = rows.next();
 				Iterator<Cell> cells = row.cellIterator();
@@ -273,33 +277,30 @@ public class Staging {
 							}
 							break;
 						case STRING:
-								value += cell.getStringCellValue() + "|";
+							value += cell.getStringCellValue() + "|";
 							break;
 						case BLANK:
-								value +=" " + "|"; 
+							value += " " + "|";
 							break;
 						default:
 							if (cell.getStringCellValue().toString().equalsIgnoreCase("")) {
-								value +=" " + "|"; 
+								value += " " + "|";
 							}
 							break;
 						}
 					} catch (Exception e) {
-						value +=" " + "|"; 
+						value += " " + "|";
 					}
-					
-					
-					
+
 					count++;
 				}
-				if (value.length()>0) {
+				if (value.length() > 0) {
 					values += readLines(value.substring(0, value.length() - 1), "|");
 				}
-				
+
 //				System.out.println("values:" + values);
 				value = "";
-				
-				
+
 //				if (count != numOfcol) {
 //					break;
 //				}
@@ -315,7 +316,7 @@ public class Staging {
 	private static String readLines(String value, String delim) {
 		String values = "";
 		StringTokenizer stoken = new StringTokenizer(value, delim);
-		if (stoken.countTokens() > 0) {
+		if (stoken.countTokens() < 0) {
 			stoken.nextToken();
 		}
 		int countToken = stoken.countTokens();
@@ -328,7 +329,7 @@ public class Staging {
 //			} else {
 			lines += (j == countToken - 1) ? "'" + token + "')," : "'" + token + "',";
 //			}
-			
+
 			values += lines;
 			lines = "";
 		}
@@ -339,7 +340,7 @@ public class Staging {
 	public static boolean insertValues(String target_table, String column_list, String values)
 			throws ClassNotFoundException {
 		String sql = "INSERT INTO `" + target_table + "` (" + column_list + ") VALUES " + values;
-		System.out.println(sql);
+//		System.out.println(sql);
 
 		try {
 			PreparedStatement pst = ConnectionDB.getConnection("staging").prepareStatement(sql);
@@ -351,12 +352,12 @@ public class Staging {
 		}
 	}
 
-	public static boolean writeDataToBD(String target_table, String column_list, String values)
-			throws ClassNotFoundException {
-		if (Staging.insertValues(target_table, column_list, values))
-			return true;
-		return false;
-	}
+//	public static boolean writeDataToBD(String target_table, String column_list, String values)
+//			throws ClassNotFoundException {
+//		if (Staging.insertValues(target_table, column_list, values))
+//			return true;
+//		return false;
+//	}
 
 //	public static void main(String[] args) throws org.apache.poi.openxml4j.exceptions.InvalidFormatException,
 //			EncryptedDocumentException, ClassNotFoundException, SQLException, IOException {

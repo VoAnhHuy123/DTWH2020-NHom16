@@ -120,20 +120,20 @@ public class DownloadFile {
 
 	// ***** DOWNLOAD TAT CA CAC FILE CUA CAC NHOM VE LOCAL ********//
 
-	public static void getLog() throws ClassNotFoundException, SQLException {
+	public static void getLog(String id) throws ClassNotFoundException, SQLException {
 		Connection con;
 		PreparedStatement pre;
 
 		// ket noi toi controldb
 		con = ConnectionDB.getConnection("controldb");
-		String sql = "SELECT * FROM `table_config` WHERE config_id = 1";
+		String sql = "SELECT * FROM `table_config` WHERE config_id = "+id;
 		pre = con.prepareStatement(sql);
 		System.out.println();
 		ResultSet tmp = pre.executeQuery();
 		// duyet record trong resultset
 		while (tmp.next()) {
 //				String target_table = tmp.getString("target_table");
-			int id = tmp.getInt("config_id");
+//			int id = tmp.getInt("config_id");
 			String file_name = tmp.getString("file_name");
 			String file_type = tmp.getString("file_type");
 			String local = tmp.getString("source");
@@ -145,11 +145,11 @@ public class DownloadFile {
 			String target_table = tmp.getString("target_table");
 
 			// bat dau load file ve
-			boolean download = new DownloadFile().downloadFile(host, ports, user, pass, path, local, file_name,
-					file_type);
+//			boolean download = new DownloadFile().downloadFile(host, ports, user, pass, path, local, file_name,
+//					file_type);
 			Staging s = new Staging();
 
-			if (download) {
+//			if (download) {
 				File file = new File(local);
 				System.out.println("File");
 				try {
@@ -181,32 +181,32 @@ public class DownloadFile {
 					e.printStackTrace();
 				}
 
-			} else {
-				// thông báo ra màn hình
-				System.out.println("DOWNLOAD KHONG THANH CONG");
-				// Cập nhật file_status là ERROR và thời gian download là thời
-				// gian hiện tại
-				String sql1 = "INSERT INTO table_log (file_name,data_file_config_id,file_status,file_timestamp) VALUES (?,?,?,?)";
-
-				try {
-					ps = ConnectionDB.getConnection("controldb").prepareStatement(sql1);
-					ps.setString(1, target_table);
-					ps.setInt(2, id);
-					ps.setString(3, "ERROR");
-					ps.setString(4, new Timestamp(System.currentTimeMillis()).toString().substring(0, 19));
-					ps.executeUpdate();
-				} catch (ClassNotFoundException | SQLException e1) {
-					e1.printStackTrace();
-				}
-				// gửi mail về hệ thống thông báo lỗi
-				SendMail send = new SendMail(from, to, passfrom, "Updated log faild: Error " + mess + ".",
-						"Updated log Faild: DATA WAREHOUSE SERVER");
-				send.sendMail();
-			}
+//			} else {
+//				// thông báo ra màn hình
+//				System.out.println("DOWNLOAD KHONG THANH CONG");
+//				// Cập nhật file_status là ERROR và thời gian download là thời
+//				// gian hiện tại
+//				String sql1 = "INSERT INTO table_log (file_name,data_file_config_id,file_status,file_timestamp) VALUES (?,?,?,?)";
+//
+//				try {
+//					ps = ConnectionDB.getConnection("controldb").prepareStatement(sql1);
+//					ps.setString(1, target_table);
+//					ps.setString(2, id);
+//					ps.setString(3, "ERROR");
+//					ps.setString(4, new Timestamp(System.currentTimeMillis()).toString().substring(0, 19));
+//					ps.executeUpdate();
+//				} catch (ClassNotFoundException | SQLException e1) {
+//					e1.printStackTrace();
+//				}
+//				// gửi mail về hệ thống thông báo lỗi
+//				SendMail send = new SendMail(from, to, passfrom, "Updated log faild: Error " + mess + ".",
+//						"Updated log Faild: DATA WAREHOUSE SERVER");
+//				send.sendMail();
+//			}
 		}
 	}
 
-	private static void setupLog(String name, String status, int numberOfLine, int id)
+	private static void setupLog(String name, String status, int numberOfLine, String id)
 			throws SQLException, ClassNotFoundException {
 		String query = "INSERT INTO table_log (file_Name,file_timestamp, file_status, staging_load_count, data_file_config_id) VALUES (?,?,?,?,?)";
 		PreparedStatement st = ConnectionDB.getConnection("controldb").prepareStatement(query);
@@ -214,13 +214,14 @@ public class DownloadFile {
 		st.setString(2, new Timestamp(System.currentTimeMillis()).toString().substring(0, 19));
 		st.setString(3, status);
 		st.setInt(4, numberOfLine);
-		st.setInt(5, id);
+		st.setString(5, id);
 		st.execute();
 
 	}
-
-//	public static void main(String[] args) throws ClassNotFoundException, SQLException {
-//		DownloadFile d = new DownloadFile();
-//		d.getLog();
-//	}
+	
+	public static void main(String[] args) throws ClassNotFoundException, SQLException {
+		DownloadFile d = new DownloadFile();
+//		String id= args[1];
+		d.getLog("2");
+	}
 }

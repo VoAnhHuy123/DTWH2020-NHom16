@@ -26,7 +26,7 @@ public class main {
 				// download
 				System.out.println("DOWNLOAD FILE");
 				Scanner sc2 = new Scanner(System.in);
-				d.getLog();
+				d.getLog("3");
 
 			} else if (value == 3) {
 				// staging
