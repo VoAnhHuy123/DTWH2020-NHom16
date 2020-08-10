@@ -45,7 +45,8 @@ public class Staging {
 	static String mess;
 	private static String subject = "Update log successfull: DATA WAREHOUSE SERVER  ";
 
-	public void staging() throws InvalidFormatException, org.apache.poi.openxml4j.exceptions.InvalidFormatException {
+	public void staging(String idd)
+			throws InvalidFormatException, org.apache.poi.openxml4j.exceptions.InvalidFormatException {
 		Connection con;
 		PreparedStatement pre;
 		// Kiem tra ket noi
@@ -54,8 +55,15 @@ public class Staging {
 			String fail = "";
 			String error = "";
 			con = ConnectionDB.getConnection("controldb");
-			String sql = "SELECT * FROM `table_config` JOIN table_log ON table_config.config_id = table_log.data_file_config_id WHERE table_log.file_status = 'ER'";
-			pre = con.prepareStatement(sql);
+			if (idd.equals("0")) {
+				String sql = "SELECT * FROM `table_config` JOIN table_log ON table_config.config_id = table_log.data_file_config_id WHERE table_log.file_status = 'ER'";
+				pre = con.prepareStatement(sql);
+				
+			} else {
+				String sql = "SELECT * FROM `table_config` JOIN table_log ON table_config.config_id = table_log.data_file_config_id WHERE table_config.config_id = ? and table_log.file_status = 'ER'";
+				pre = con.prepareStatement(sql);
+				pre.setString(1, idd);
+			}
 			ResultSet rs = pre.executeQuery();
 			while (rs.next()) {
 //			rs.next();
@@ -68,7 +76,7 @@ public class Staging {
 				numOfcol = rs.getInt("numofcol");
 				dilimeter = rs.getString("delimeter");
 //				source_file = null;
-				fileType= rs.getString("file_type");
+				fileType = rs.getString("file_type");
 				local = rs.getString("source");
 
 				//
@@ -92,7 +100,7 @@ public class Staging {
 //				String status = result.getString("file_status");
 //				if (status.equals("ER")) {
 //					String fileName = result.getString("file_name");
-				File file = new File(local + "\\" + fileName +"."+ fileType);
+				File file = new File(local + "\\" + fileName + "." + fileType);
 				if (!file.exists()) {
 					error += local + "\\" + fileName + fileType + "\n";
 					System.out.println("File không tồn tại");
@@ -109,50 +117,50 @@ public class Staging {
 //						countofline = Staging.countLines(file);
 
 //						if (countofline > 0) {
-							/// Kiem tra so dong duoc load vao staging
-							insertValues(target_table, column_list, readFile);
+						/// Kiem tra so dong duoc load vao staging
+						insertValues(target_table, column_list, readFile);
 
-							try {
-								pre = ConnectionDB.getConnection("controldb").prepareStatement(sqlupdate);
-								pre.setString(1, "TR");
-								pre.setInt(2, countofline);
-								pre.setString(3, new Timestamp(System.currentTimeMillis()).toString().substring(0, 19));
-								pre.setInt(4, id);
-								pre.execute();
-								succeed += fileName +"."+fileType+ " ";
-								System.out.println("Update success.......");
-							} catch (ClassNotFoundException e) {
-								// TODO Auto-generated catch block
-								e.printStackTrace();
-							} catch (SQLException e) {
-								// TODO Auto-generated catch block
-								e.printStackTrace();
-							}
+						try {
+							pre = ConnectionDB.getConnection("controldb").prepareStatement(sqlupdate);
+							pre.setString(1, "TR");
+							pre.setInt(2, countofline);
+							pre.setString(3, new Timestamp(System.currentTimeMillis()).toString().substring(0, 19));
+							pre.setInt(4, id);
+							pre.execute();
+							succeed += fileName + "." + fileType + " ";
+							System.out.println("Update success.......");
+						} catch (ClassNotFoundException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						} catch (SQLException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
 //								}
-						} else {
+					} else {
 //								String sqlupdate = "UPDATE table_log SET file_status = ?,staging_load_count =?, file_timestamp =? WHERE id = ?";
 
-							try {
-								pre = ConnectionDB.getConnection("controldb").prepareStatement(sqlupdate);
-								pre.setString(1, "Fail");
-								pre.setInt(2, countofline);
-								pre.setString(3, new Timestamp(System.currentTimeMillis()).toString().substring(0, 19));
-								pre.setInt(4, id);
-								pre.execute();
-								fail += fileName + " ";
-								System.out.println("Update success.......");
-							} catch (ClassNotFoundException e) {
-								// TODO Auto-generated catch block
-								e.printStackTrace();
-							} catch (SQLException e) {
-								// TODO Auto-generated catch block
-								e.printStackTrace();
-							}
-
-							// send mail
-
+						try {
+							pre = ConnectionDB.getConnection("controldb").prepareStatement(sqlupdate);
+							pre.setString(1, "Fail");
+							pre.setInt(2, countofline);
+							pre.setString(3, new Timestamp(System.currentTimeMillis()).toString().substring(0, 19));
+							pre.setInt(4, id);
+							pre.execute();
+							fail += fileName + " ";
+							System.out.println("Update success.......");
+						} catch (ClassNotFoundException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						} catch (SQLException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
 						}
+
+						// send mail
+
 					}
+				}
 //					}
 //				} else {
 //					createTable(target_table, variables, column_list);
