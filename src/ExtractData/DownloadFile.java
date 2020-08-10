@@ -161,6 +161,7 @@ public class DownloadFile {
 							// 6.2.3.1.2 Đưa ra thông báo
 							System.out.println("Insert success full: " + f);
 						} else
+							
 							// 6.2.3.2.1 Đưa ra thông báo
 							System.out.println(f + " : Đã được insert vào log ");
 					}

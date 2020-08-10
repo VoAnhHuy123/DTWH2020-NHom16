@@ -42,7 +42,7 @@ public class Staging {
 	private static String to = "huyvo2581999@gmail.com";
 	private static String passfrom = "datawarehouse2020";
 //	private static String content = ";
-	static String mess;
+	static String mess = "invalid id";
 	private static String subject = "Update log successfull: DATA WAREHOUSE SERVER  ";
 
 	public void staging(String idd)
@@ -82,14 +82,14 @@ public class Staging {
 				String fileName = rs.getString("file_name");
 				System.out.println(fileName);
 				System.out.println(local);
-
+				mess="";
 				//lấy danh sách trường dữ liệu trong bảng
 				StringTokenizer tokens = new StringTokenizer(column_list, dilimeter);
 				while (tokens.hasMoreTokens()) {
 					columnslist.add(tokens.nextToken());
 				}
 
-				File file = new File(local + "\\" + fileName + "." + fileType);
+				File file = new File(local + "\\" + fileName);
 				// kiểm tra file có tồn tại hay không?
 				if (!file.exists()) {
 					//file không tồn tại
@@ -97,16 +97,57 @@ public class Staging {
 					System.out.println("File không tồn tại");
 				} else {
 					/// file tồn tại đọc file
-					String readFile = Staging.readValuesXLSX(file);
+					String readFile="";
+					String sqlupdate = "UPDATE table_log SET file_status = ?,staging_load_count =?, file_timestamp =? WHERE id = ?";
+					// kiểm tra có insert được hay không
+					try {
+						//được
+						readFile = Staging.readValuesXLSX(file);
+					} catch (Exception e) {
+						//không
+						pre = ConnectionDB.getConnection("controldb").prepareStatement(sqlupdate);
+						pre.setString(1, "Fail");
+						pre.setInt(2, countofline);
+						pre.setString(3, new Timestamp(System.currentTimeMillis()).toString().substring(0, 19));
+						pre.setInt(4, id);
+						pre.execute();
+						fail += fileName + " ";
+						System.out.println("Update success.......");
+					}
+					
 					System.out.println("Doc file thanh cong");
 					String values = "";
 					System.out.println("========");
-					String sqlupdate = "UPDATE table_log SET file_status = ?,staging_load_count =?, file_timestamp =? WHERE id = ?";
-					if (readFile != null) {
+					
+					
 						System.out.println("Chuan bi insert du lieu");
 						// file không rổng tiến hành thêm dữ liệu vào bảng
-						insertValues(target_table, column_list, readFile);
 
+						String sql = "INSERT INTO `" + target_table + "` (" + column_list + ") VALUES " + readFile;
+//						
+						// chèn dữ liệu
+						try {
+							//được
+							PreparedStatement pst = ConnectionDB.getConnection("staging").prepareStatement(sql);
+							pst.executeUpdate();
+//							return true;
+						} catch (SQLException e) {
+							//không
+							pre = ConnectionDB.getConnection("controldb").prepareStatement(sqlupdate);
+							pre.setString(1, "Fail");
+							pre.setInt(2, countofline);
+							pre.setString(3, new Timestamp(System.currentTimeMillis()).toString().substring(0, 19));
+							pre.setInt(4, id);
+							pre.execute();
+							fail += fileName + " ";
+							System.out.println("Update success.......");
+							//tiếp tục vòng lặp
+							continue;
+//							
+						}
+
+						
+						
 						try {
 							//update trạng thái trong log
 							pre = ConnectionDB.getConnection("controldb").prepareStatement(sqlupdate);
@@ -125,43 +166,15 @@ public class Staging {
 							e.printStackTrace();
 						}
 //								}
-					} else {
-//								String sqlupdate = "UPDATE table_log SET file_status = ?,staging_load_count =?, file_timestamp =? WHERE id = ?";
-
-						try {
-							// file lỗi update trạng thái trong log
-							pre = ConnectionDB.getConnection("controldb").prepareStatement(sqlupdate);
-							pre.setString(1, "Fail");
-							pre.setInt(2, countofline);
-							pre.setString(3, new Timestamp(System.currentTimeMillis()).toString().substring(0, 19));
-							pre.setInt(4, id);
-							pre.execute();
-							fail += fileName + " ";
-							System.out.println("Update success.......");
-						} catch (ClassNotFoundException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						} catch (SQLException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
-
-						// send mail
-
-					}
+					
 				}
-//					}
-//				} else {
-//					createTable(target_table, variables, column_list);
-//					System.out.println("tao bang moi");
-//				}
-//				}
-//			}
+				
+
 
 			}
 			// gửi mail thông báo
 			SendMail send = new SendMail(from, to, passfrom,
-					"Extract to staging: Succeed: " + succeed + " \n" + "Fail:" + fail + "\n" + "File not found:"
+					mess +"\n"+ "Extract to staging: Succeed: " + succeed + " \n" + "Fail:" + fail + "\n" + "File not found:"
 							+ error + "\n" + new Timestamp(System.currentTimeMillis()).toString().substring(0, 19),
 					subject);
 			send.sendMail();
@@ -345,7 +358,7 @@ public class Staging {
 			pst.executeUpdate();
 			return true;
 		} catch (SQLException e) {
-			e.printStackTrace();
+//			e.printStackTrace();
 			return false;
 		}
 	}
