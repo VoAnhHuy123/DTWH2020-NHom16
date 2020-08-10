@@ -125,69 +125,68 @@ public class DownloadFile {
 //					file_type);
 			// Nếu thành công
 //			if (download) {
-				// 6.2.1 thông báo ra màn hình
-//				System.out.println("DOWNLOAD THANH CONG");
-				// lay file trong thu muc
-				File file = new File(local);
-				try {
-					if (file.isDirectory()) {
-						// 6.2.2 lay ra danh sach cac file co trong thu muc
-						File[] listFile = file.listFiles();
-						// 6.2.3 duyet trong log xem file da duoc ghi log chua
-						String sqllog = "SELECT file_name FROM table_log";
-						PreparedStatement pslog = con.prepareStatement(sqllog);
-						ResultSet rslog = pslog.executeQuery();
-						// 7.2.1.2 ds các file co trong log
-						ArrayList<String> listFileLog = new ArrayList<>();
-						while (rslog.next()) {
-							listFileLog.add(rslog.getString("file_name"));
-						}
-						for (File f : listFile) {
-							// neu trong log chua ton tai file thì bat dau insert vao
-							if (!listFileLog.contains(f.getName())) {
-								// dem so dong co trong file
-								int numberOfLine = countLines(f);
-								// 6.2.3.1.1 bat dau ghi log
+			// 6.2.1 thông báo ra màn hình
+			System.out.println("DOWNLOAD THANH CONG");
+			// lay file trong thu muc
+			File file = new File(local);
+			try {
+				if (file.isDirectory()) {
+					// 6.2.2 lay ra danh sach cac file co trong thu muc
+					File[] listFile = file.listFiles();
+					// 6.2.3 duyet trong log xem file da duoc ghi log chua
+					String sqllog = "SELECT file_name FROM table_log";
+					PreparedStatement pslog = con.prepareStatement(sqllog);
+					ResultSet rslog = pslog.executeQuery();
+					// 7.2.1.2 ds các file co trong log
+					ArrayList<String> listFileLog = new ArrayList<>();
+					while (rslog.next()) {
+						listFileLog.add(rslog.getString("file_name"));
+					}
+					for (File f : listFile) {
+						// neu trong log chua ton tai file thì bat dau insert vao
+						if (!listFileLog.contains(f.getName())) {
+							// dem so dong co trong file
+							int numberOfLine = countLines(f);
+							// 6.2.3.1.1 bat dau ghi log
 //							setupLog(f.getName(), "ER", numberOfLine, id);
-								String query = "INSERT INTO table_log (file_Name,file_timestamp, file_status, staging_load_count, data_file_config_id) VALUES (?,?,?,?,?)";
-								PreparedStatement st = ConnectionDB.getConnection("controldb").prepareStatement(query);
-								st.setString(1, f.getName());
-								st.setString(2, new Timestamp(System.currentTimeMillis()).toString().substring(0, 19));
-								st.setString(3, "ER");
-								st.setInt(4, numberOfLine);
-								st.setString(5, id);
-								st.execute();
+							String query = "INSERT INTO table_log (file_Name,file_timestamp, file_status, staging_load_count, data_file_config_id) VALUES (?,?,?,?,?)";
+							PreparedStatement st = ConnectionDB.getConnection("controldb").prepareStatement(query);
+							st.setString(1, f.getName());
+							st.setString(2, new Timestamp(System.currentTimeMillis()).toString().substring(0, 19));
+							st.setString(3, "ER");
+							st.setInt(4, numberOfLine);
+							st.setString(5, id);
+							st.execute();
 
-								// 6.2.3.1.2 Đưa ra thông báo
-								System.out.println("Insert success full: " + f);
-							} else
-								// 6.2.3.2.1 Đưa ra thông báo
-								System.out.println(f + " : Đã được insert vào log ");
-						}
-						// 6.2.3.1.3 gui mail
-						SendMail send = new SendMail(from, to, passfrom,
-								" Update log successfull from " + path + " to " + local + " at "
-										+ new Timestamp(System.currentTimeMillis()).toString().substring(0, 19),
-								subject);
-						send.sendMail();
+							// 6.2.3.1.2 Đưa ra thông báo
+							System.out.println("Insert success full: " + f);
+						} else
+							// 6.2.3.2.1 Đưa ra thông báo
+							System.out.println(f + " : Đã được insert vào log ");
+					}
+					// 6.2.3.1.3 gui mail
+//					SendMail send = new SendMail(from, to, passfrom, " Update log successfull from " + path + " to "
+//							+ local + " at " + new Timestamp(System.currentTimeMillis()).toString().substring(0, 19),
+//							subject);
+//					send.sendMail();
 
-					} else
-						// Thông báo file không tồn tại
-						System.out.println("No fine path");
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-				/// 7. Đóng tất cả kết nối tới Database "controldb"
-				finally {
-					if (ps != null) {
-						try {
-							ps.close();
-							con.close();
-						} catch (SQLException e) {
-							e.printStackTrace();
-						}
+				} else
+					// Thông báo file không tồn tại
+					System.out.println("No fine path");
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			/// 7. Đóng tất cả kết nối tới Database "controldb"
+			finally {
+				if (ps != null) {
+					try {
+						ps.close();
+						con.close();
+					} catch (SQLException e) {
+						e.printStackTrace();
 					}
 				}
+			}
 
 //			} else {
 //				// 6.1.1 Thông báo ra màn hình
@@ -219,8 +218,8 @@ public class DownloadFile {
 //				SendMail send = new SendMail(from, to, passfrom, "Updated log faild: Error " + mess + ".",
 //						"Updated log Faild: DATA WAREHOUSE SERVER");
 //				send.sendMail();
-			}
-//		}
+//			}
+		}
 	}
 
 	// dem so dong co trong file

@@ -54,7 +54,9 @@ public class Staging {
 			String succeed = "";
 			String fail = "";
 			String error = "";
+			// kết nối với database controldb
 			con = ConnectionDB.getConnection("controldb");
+			//lấy dữ liệu theo điều kiện
 			if (idd.equals("0")) {
 				String sql = "SELECT * FROM `table_config` JOIN table_log ON table_config.config_id = table_log.data_file_config_id WHERE table_log.file_status = 'ER'";
 				pre = con.prepareStatement(sql);
@@ -66,16 +68,13 @@ public class Staging {
 			}
 			ResultSet rs = pre.executeQuery();
 			while (rs.next()) {
-//			rs.next();
-
+				// lấy thông tin của dòng dữ liệu
 				int id = rs.getInt("id");
 				target_table = rs.getString("target_table");
 				source = rs.getString("source");
 				column_list = rs.getString("column_list");
-//			System.out.println(column_list);
 				numOfcol = rs.getInt("numofcol");
 				dilimeter = rs.getString("delimeter");
-//				source_file = null;
 				fileType = rs.getString("file_type");
 				local = rs.getString("source");
 
@@ -84,28 +83,20 @@ public class Staging {
 				System.out.println(fileName);
 				System.out.println(local);
 
-				//
-//			String variables = rs.getString("variables");
+				//lấy danh sách trường dữ liệu trong bảng
 				StringTokenizer tokens = new StringTokenizer(column_list, dilimeter);
-//			createTable(target_table, variables, column_list);
 				while (tokens.hasMoreTokens()) {
 					columnslist.add(tokens.nextToken());
 				}
 
-//			String selectAll = "select * from table_log";
-//			System.out.println("ok");
-//			PreparedStatement getAll = ConnectionDB.getConnection("controldb").prepareStatement(selectAll);
-//			ResultSet result = getAll.executeQuery();
-//			while (result.next()) {
-//				String status = result.getString("file_status");
-//				if (status.equals("ER")) {
-//					String fileName = result.getString("file_name");
 				File file = new File(local + "\\" + fileName + "." + fileType);
+				// kiểm tra file có tồn tại hay không?
 				if (!file.exists()) {
+					//file không tồn tại
 					error += local + "\\" + fileName + fileType + "\n";
 					System.out.println("File không tồn tại");
 				} else {
-					/// doc file
+					/// file tồn tại đọc file
 					String readFile = Staging.readValuesXLSX(file);
 					System.out.println("Doc file thanh cong");
 					String values = "";
@@ -113,14 +104,11 @@ public class Staging {
 					String sqlupdate = "UPDATE table_log SET file_status = ?,staging_load_count =?, file_timestamp =? WHERE id = ?";
 					if (readFile != null) {
 						System.out.println("Chuan bi insert du lieu");
-//							if (Staging.writeDataToBD(target_table, column_list, readFile)) {
-//						countofline = Staging.countLines(file);
-
-//						if (countofline > 0) {
-						/// Kiem tra so dong duoc load vao staging
+						// file không rổng tiến hành thêm dữ liệu vào bảng
 						insertValues(target_table, column_list, readFile);
 
 						try {
+							//update trạng thái trong log
 							pre = ConnectionDB.getConnection("controldb").prepareStatement(sqlupdate);
 							pre.setString(1, "TR");
 							pre.setInt(2, countofline);
@@ -141,6 +129,7 @@ public class Staging {
 //								String sqlupdate = "UPDATE table_log SET file_status = ?,staging_load_count =?, file_timestamp =? WHERE id = ?";
 
 						try {
+							// file lỗi update trạng thái trong log
 							pre = ConnectionDB.getConnection("controldb").prepareStatement(sqlupdate);
 							pre.setString(1, "Fail");
 							pre.setInt(2, countofline);
@@ -170,6 +159,7 @@ public class Staging {
 //			}
 
 			}
+			// gửi mail thông báo
 			SendMail send = new SendMail(from, to, passfrom,
 					"Extract to staging: Succeed: " + succeed + " \n" + "Fail:" + fail + "\n" + "File not found:"
 							+ error + "\n" + new Timestamp(System.currentTimeMillis()).toString().substring(0, 19),
