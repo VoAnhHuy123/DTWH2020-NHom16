@@ -121,10 +121,10 @@ public class DownloadFile {
 			// 6. Gọi phương thức downloadFile(host, ports, user, pass, path, local,
 			// target_table,file_type) để download file về local
 			// Bắt đầu download file về
-//			boolean download = new DownloadFile().downloadFile(host, ports, user, pass, path, local, target_table,
-//					file_type);
+			boolean download = new DownloadFile().downloadFile(host, ports, user, pass, path, local, target_table,
+					file_type);
 			// Nếu thành công
-//			if (download) {
+			if (download) {
 			// 6.2.1 thông báo ra màn hình
 			System.out.println("DOWNLOAD THANH CONG");
 			// lay file trong thu muc
@@ -166,10 +166,10 @@ public class DownloadFile {
 							System.out.println(f + " : Đã được insert vào log ");
 					}
 					// 6.2.3.1.3 gui mail
-//					SendMail send = new SendMail(from, to, passfrom, " Update log successfull from " + path + " to "
-//							+ local + " at " + new Timestamp(System.currentTimeMillis()).toString().substring(0, 19),
-//							subject);
-//					send.sendMail();
+					SendMail send = new SendMail(from, to, passfrom, " Update log successfull from " + path + " to "
+							+ local + " at " + new Timestamp(System.currentTimeMillis()).toString().substring(0, 19),
+							subject);
+					send.sendMail();
 
 				} else
 					// Thông báo file không tồn tại
@@ -189,37 +189,37 @@ public class DownloadFile {
 				}
 			}
 
-//			} else {
-//				// 6.1.1 Thông báo ra màn hình
-//				System.out.println("DOWNLOAD KHONG THANH CONG");
-//				// 6.1.2 Cập nhật file_status là ERROR và thời gian download là thời gian hiện
-//				// tại
-//				String sql1 = "INSERT INTO table_log (file_name,data_file_config_id,file_status,file_timestamp) VALUES (?,?,?,?)";
-//
-//				try {
-//					ps = con.prepareStatement(sql1);
-//					ps.setString(1, target_table);
-//					ps.setString(2, id);
-//					ps.setString(3, "ERROR");
-//					ps.setString(4, new Timestamp(System.currentTimeMillis()).toString().substring(0, 19));
-//					ps.executeUpdate();
-//				} catch (SQLException e1) {
-//					e1.printStackTrace();
-//				} finally {
-//					if (ps != null) {
-//						try {
-//							ps.close();
-//						} catch (SQLException e) {
-//							// TODO Auto-generated catch block
-//							e.printStackTrace();
-//						}
-//					}
-//				}
-//				// 6.1.3 Gửi mail về hệ thống thông báo lỗi
-//				SendMail send = new SendMail(from, to, passfrom, "Updated log faild: Error " + mess + ".",
-//						"Updated log Faild: DATA WAREHOUSE SERVER");
-//				send.sendMail();
-//			}
+			} else {
+				// 6.1.1 Thông báo ra màn hình
+				System.out.println("DOWNLOAD KHONG THANH CONG");
+				// 6.1.2 Cập nhật file_status là ERROR và thời gian download là thời gian hiện
+				// tại
+				String sql1 = "INSERT INTO table_log (file_name,data_file_config_id,file_status,file_timestamp) VALUES (?,?,?,?)";
+
+				try {
+					ps = con.prepareStatement(sql1);
+					ps.setString(1, target_table);
+					ps.setString(2, id);
+					ps.setString(3, "ERROR");
+					ps.setString(4, new Timestamp(System.currentTimeMillis()).toString().substring(0, 19));
+					ps.executeUpdate();
+				} catch (SQLException e1) {
+					e1.printStackTrace();
+				} finally {
+					if (ps != null) {
+						try {
+							ps.close();
+						} catch (SQLException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+					}
+				}
+				// 6.1.3 Gửi mail về hệ thống thông báo lỗi
+				SendMail send = new SendMail(from, to, passfrom, "Updated log faild: Error " + mess + ".",
+						"Updated log Faild: DATA WAREHOUSE SERVER");
+				send.sendMail();
+			}
 		}
 	}
 
